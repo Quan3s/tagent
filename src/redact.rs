@@ -74,10 +74,25 @@ pub fn redact_event(event: Event, secrets: &[String]) -> Event {
             tool,
             target,
             decision,
+            id,
         } => Event::PermissionRequest {
             tool,
             target: redact(&target, secrets),
             decision,
+            id,
+        },
+        Event::Diff { path, diff } => Event::Diff {
+            path: redact(&path, secrets),
+            diff: redact(&diff, secrets),
+        },
+        Event::TodoUpdate { items } => Event::TodoUpdate {
+            items: items
+                .into_iter()
+                .map(|v| redact_value(v, secrets))
+                .collect(),
+        },
+        Event::ThinkingDelta { text } => Event::ThinkingDelta {
+            text: redact(&text, secrets),
         },
         other => other,
     }

@@ -1,9 +1,16 @@
+pub mod checkpoint;
 pub mod cli;
 pub mod config;
 pub mod core;
+pub mod cost;
+pub mod diff;
 pub mod events;
+pub mod ext;
+pub mod keystore;
 pub mod perm;
 pub mod provider;
 pub mod redact;
+pub mod serve;
 pub mod session;
 pub mod tools;
+pub mod tui;

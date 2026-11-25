@@ -1,13 +1,35 @@
-//! Provider-neutral message/tool schema. M0 ships exactly one adapter: Anthropic.
+//! Provider-neutral message/tool schema and adapters.
 
 pub mod anthropic;
+pub mod openai;
 
+use crate::config::ProviderConfig;
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use serde_json::Value;
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
+
+/// Debug/Display never expose the wrapped value.
+pub struct ApiKey(pub(crate) String);
+
+impl fmt::Debug for ApiKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("ApiKey([redacted])")
+    }
+}
+
+impl ApiKey {
+    pub fn new(value: String) -> anyhow::Result<Self> {
+        if value.trim().is_empty() {
+            anyhow::bail!(
+                "API key is empty; set the key environment variable or run `ta auth add`"
+            );
+        }
+        Ok(Self(value))
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -81,6 +103,7 @@ pub struct CompletionRequest {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ProviderEvent {
     TextDelta(String),
+    ThinkingDelta(String),
     ToolUseStart {
         id: String,
         name: String,
@@ -107,3 +130,34 @@ pub trait Provider: Send + Sync {
 }
 
 pub type DynProvider = Arc<dyn Provider>;
+
+/// Build a provider from config, resolving the BYOK key without logging it.
+pub fn build(name: &str, cfg: &ProviderConfig) -> Result<DynProvider> {
+    let key = match cfg.resolve_key(name) {
+        Some(key) => key,
+        None => {
+            // Local OpenAI-compatible servers (Ollama, llama.cpp) need no key.
+            let local = cfg.base_url().starts_with("http://127.0.0.1")
+                || cfg.base_url().starts_with("http://localhost")
+                || cfg.base_url().starts_with("http://[::1]");
+            if local {
+                "local".to_string()
+            } else {
+                return Err(anyhow::anyhow!(
+                    "no API key configured for provider '{name}' (run `ta auth add {name}` or set {})",
+                    cfg.key_env_name()
+                ));
+            }
+        }
+    };
+    match cfg {
+        ProviderConfig::Anthropic { .. } => {
+            Ok(Arc::new(anthropic::Anthropic::new(key, cfg.base_url())?))
+        }
+        ProviderConfig::OpenaiCompat { .. }
+        | ProviderConfig::Openrouter { .. }
+        | ProviderConfig::Gemini { .. } => {
+            Ok(Arc::new(openai::OpenAiCompat::new(key, cfg.base_url())?))
+        }
+    }
+}

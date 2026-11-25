@@ -8,11 +8,11 @@ pub struct WriteTool;
 
 #[async_trait]
 impl Tool for WriteTool {
-    fn name(&self) -> &'static str {
+    fn name(&self) -> &str {
         "write"
     }
 
-    fn description(&self) -> &'static str {
+    fn description(&self) -> &str {
         "Create or overwrite a UTF-8 text file inside the workspace."
     }
 

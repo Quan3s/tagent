@@ -4,22 +4,15 @@
 //! placed in a request header. It is never cloned into an event, a log line or
 //! an error message.
 
-use super::{CompletionRequest, ContentBlock, Message, Provider, ProviderEvent, Role, Usage};
+use super::{
+    ApiKey, CompletionRequest, ContentBlock, Message, Provider, ProviderEvent, Role, Usage,
+};
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use futures_util::StreamExt;
 use reqwest::{Client, StatusCode};
 use serde_json::{json, Value};
 use std::{collections::HashMap, fmt};
-
-/// Debug/Display never expose the wrapped value.
-struct ApiKey(String);
-
-impl fmt::Debug for ApiKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("ApiKey([redacted])")
-    }
-}
 
 pub struct Anthropic {
     client: Client,
@@ -38,16 +31,13 @@ impl fmt::Debug for Anthropic {
 
 impl Anthropic {
     pub fn new(api_key: String, base_url: &str) -> Result<Self> {
-        if api_key.trim().is_empty() {
-            bail!("API key is empty; set the key environment variable from your config");
-        }
         Ok(Self {
             // default-features = false + `rustls-tls`: no system OpenSSL needed.
             client: Client::builder()
                 .build()
                 .context("cannot build HTTP client")?,
             base_url: base_url.trim_end_matches('/').to_string(),
-            key: ApiKey(api_key),
+            key: ApiKey::new(api_key)?,
         })
     }
 
@@ -249,6 +239,11 @@ fn handle_event(
                 Some("text_delta") => {
                     if let Some(text) = value.pointer("/delta/text").and_then(Value::as_str) {
                         emit(ProviderEvent::TextDelta(text.to_string()));
+                    }
+                }
+                Some("thinking_delta") => {
+                    if let Some(text) = value.pointer("/delta/thinking").and_then(Value::as_str) {
+                        emit(ProviderEvent::ThinkingDelta(text.to_string()));
                     }
                 }
                 Some("input_json_delta") => {

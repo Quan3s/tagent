@@ -212,6 +212,19 @@ impl Engine {
         self.mode
     }
 
+    /// Add a session-scoped allow rule, used by "always allow" replies.
+    pub fn allow(&mut self, tool: &str, target: &str) {
+        let rule = if target.is_empty() {
+            Rule::Tool(tool.to_string())
+        } else {
+            Rule::Scoped {
+                tool: tool.to_string(),
+                pattern: target.to_string(),
+            }
+        };
+        self.session_allow.push(rule);
+    }
+
     pub fn decide(&self, tool: &str, target: &str) -> Decision {
         // Hard safety floor: dangerous shell commands stay blocked in every mode.
         if tool.eq_ignore_ascii_case("bash") {
