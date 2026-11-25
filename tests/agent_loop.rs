@@ -4,6 +4,7 @@
 
 use serde_json::{json, Value};
 use std::{
+    collections::HashMap,
     path::PathBuf,
     sync::{Arc, Mutex},
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -168,6 +169,18 @@ async fn agent_loop_reads_a_file_then_answers() {
             sink,
             secrets: Vec::new(),
             secret_env_names: Vec::new(),
+            permission_reply: None,
+            interrupt: None,
+            record_sink: None,
+            pricing: HashMap::new(),
+            compact_threshold: None,
+            checkpoints: false,
+            project_instructions: Vec::new(),
+            skill_prompt: None,
+            allowed_tools: None,
+            hooks: None,
+            extra_tools: Vec::new(),
+            depth: 0,
         }),
     )
     .await

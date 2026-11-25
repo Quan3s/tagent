@@ -36,11 +36,21 @@ pub enum Event {
         tool: String,
         target: String,
         decision: String,
+        /// Present for interactive requests so the UI can reply over WS.
+        /// Serialized under a distinct name: `Record.id` is the event id.
+        #[serde(default, rename = "permission_id")]
+        id: Option<String>,
     },
+    #[serde(rename = "diff")]
+    Diff { path: String, diff: String },
+    #[serde(rename = "todo.update")]
+    TodoUpdate { items: Vec<Value> },
     #[serde(rename = "usage")]
     Usage {
         input_tokens: u64,
         output_tokens: u64,
+        #[serde(default)]
+        cost_usd: Option<f64>,
     },
     #[serde(rename = "error")]
     Error { message: String },
@@ -60,6 +70,8 @@ impl Event {
             Self::ToolStart { .. } => "tool.start",
             Self::ToolResult { .. } => "tool.result",
             Self::PermissionRequest { .. } => "permission.request",
+            Self::Diff { .. } => "diff",
+            Self::TodoUpdate { .. } => "todo.update",
             Self::Usage { .. } => "usage",
             Self::Error { .. } => "error",
             Self::Done { .. } => "done",

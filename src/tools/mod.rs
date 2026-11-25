@@ -1,7 +1,16 @@
-//! Built-in tool registry and executor. M0: `read`, `write`, `bash`.
+//! Built-in tool registry and executor.
 
 pub mod bash;
+pub mod edit;
+pub mod glob;
+pub mod grep;
+pub mod ls;
+pub mod multi_edit;
 pub mod read;
+pub mod termux;
+pub mod todo;
+pub mod web_fetch;
+pub mod web_search;
 pub mod write;
 
 use anyhow::{bail, Context, Result};
@@ -20,6 +29,12 @@ pub struct ToolContext {
     pub bash_timeout: Duration,
     /// Env vars removed from tool subprocesses so a tool cannot exfiltrate keys.
     pub secret_env_names: Vec<String>,
+    /// Session id used to namespace checkpoints and uploads.
+    pub session_id: String,
+    /// Whether edit tools should be snapshot before writing.
+    pub checkpoints: bool,
+    pub checkpoint_root: PathBuf,
+    pub workspace: PathBuf,
 }
 
 #[derive(Clone, Debug)]
@@ -46,8 +61,8 @@ impl ToolOutput {
 
 #[async_trait]
 pub trait Tool: Send + Sync {
-    fn name(&self) -> &'static str;
-    fn description(&self) -> &'static str;
+    fn name(&self) -> &str;
+    fn description(&self) -> &str;
     fn input_schema(&self) -> Value;
     async fn call(&self, args: &Value, ctx: &ToolContext) -> Result<ToolOutput>;
 }
@@ -56,7 +71,16 @@ pub fn builtin() -> Vec<Arc<dyn Tool>> {
     vec![
         Arc::new(read::ReadTool),
         Arc::new(write::WriteTool),
+        Arc::new(edit::EditTool),
+        Arc::new(multi_edit::MultiEditTool),
+        Arc::new(glob::GlobTool),
+        Arc::new(grep::GrepTool),
+        Arc::new(ls::LsTool),
         Arc::new(bash::BashTool),
+        Arc::new(web_fetch::WebFetchTool),
+        Arc::new(web_search::WebSearchTool),
+        Arc::new(todo::TodoTool),
+        Arc::new(termux::TermuxTool),
     ]
 }
 
@@ -134,9 +158,13 @@ mod tests {
 
     fn ctx(root: PathBuf) -> ToolContext {
         ToolContext {
-            roots: vec![root],
+            roots: vec![root.clone()],
             bash_timeout: Duration::from_secs(5),
             secret_env_names: Vec::new(),
+            session_id: "test".into(),
+            checkpoints: false,
+            checkpoint_root: std::env::temp_dir(),
+            workspace: root,
         }
     }
 
