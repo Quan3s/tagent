@@ -152,14 +152,14 @@ pub async fn run_once(cli: &Cli, prompt: String) -> Result<String> {
         .clone()
         .or_else(|| config.roles.main.clone())
         .context("no model: pass -m provider/model or set [roles].main in the config")?;
-    let (provider_name, provider_config) = {
+    let (provider_name, model, provider_config) = {
         let full = if spec.contains('/') {
             spec.clone()
         } else {
             config.resolve(&spec).map(|_| spec.clone())?
         };
-        let (name, _, pc) = config.resolve(&full)?;
-        (name, pc)
+        let (name, model, pc) = config.resolve(&full)?;
+        (name, model, pc)
     };
     let provider = build_provider(&provider_name, &provider_config)?;
 
@@ -279,7 +279,7 @@ pub async fn run_once(cli: &Cli, prompt: String) -> Result<String> {
         workspace,
         roots,
         prompt,
-        model: spec,
+        model,
         provider: DynProvider::from(provider),
         permission,
         max_turns: cli.max_turns.unwrap_or(core::DEFAULT_MAX_TURNS),

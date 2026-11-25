@@ -1479,7 +1479,7 @@ async fn run_prompt(
         .map(str::to_string)
         .or_else(|| config.roles.main.clone())
         .context("no model configured: pass model or set [roles].main")?;
-    let (provider_name, provider_config) = {
+    let (provider_name, model, provider_config) = {
         let spec = if model_spec.contains('/') {
             model_spec.clone()
         } else {
@@ -1488,8 +1488,8 @@ async fn run_prompt(
                 .map(|_| model_spec.clone())
                 .unwrap_or_else(|_| "anthropic/claude-sonnet-4-5".into())
         };
-        let (name, _, pc) = config.resolve(&spec)?;
-        (name, pc)
+        let (name, model, pc) = config.resolve(&spec)?;
+        (name, model, pc)
     };
     let provider: DynProvider = provider::build(&provider_name, &provider_config)?;
     let permission = perm::Engine::new(
@@ -1540,7 +1540,7 @@ async fn run_prompt(
         workspace: state.workspace.clone(),
         roots: state.roots.clone(),
         prompt: text.to_string(),
-        model: model_spec,
+        model,
         provider,
         permission,
         max_turns: 16,
